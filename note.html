@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcribe + Screenshot Saver</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #eef2f7;
+            --panel: #ffffff;
+            --text: #172033;
+            --muted: #5f6b7a;
+            --border: #d8dee8;
+            --primary: #146ef5;
+            --primary-dark: #0f55bd;
+            --danger: #c93434;
+            --success: #1f8a4c;
+            --warn: #946200;
+            --ink: #09111f;
+            --soft: #f7f9fc;
+            --shadow: 0 18px 50px rgba(33, 45, 69, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #fbfcff 0%, var(--bg) 48%, #e8edf5 100%);
+            color: var(--text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 30px 0 34px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 18px;
+            align-items: stretch;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            max-width: 740px;
+            margin: 0 0 10px;
+            font-size: 4rem;
+            line-height: 1.1;
+            letter-spacing: 0;
+            color: var(--ink);
+        }
+
+        p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .lede {
+            max-width: 680px;
+            font-size: 1.05rem;
+        }
+
+        .hero-panel,
+        .control-panel,
+        .box,
+        .audio-panel {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(216, 222, 232, 0.9);
+            backdrop-filter: blur(18px);
+        }
+
+        .hero-panel {
+            position: relative;
+            overflow: hidden;
+            min-height: 286px;
+            border-radius: 8px;
+            padding: 26px;
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(247, 249, 252, 0.92)),
+                repeating-linear-gradient(90deg, rgba(20, 110, 245, 0.05) 0 1px, transparent 1px 32px);
+        }
+
+        .session-card {
+            display: grid;
+            align-content: space-between;
+            gap: 16px;
+            border-radius: 8px;
+            padding: 18px;
+            background: #101827;
+            color: #ffffff;
+            box-shadow: var(--shadow);
+        }
+
+        .session-card p {
+            color: #b8c4d8;
+        }
+
+        .session-state {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
+            padding: 7px 10px;
+            color: #dfe7f5;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .session-state::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #f2b84b;
+            box-shadow: 0 0 0 5px rgba(242, 184, 75, 0.14);
+        }
+
+        .session-state.is-live::before {
+            background: #45db83;
+            box-shadow: 0 0 0 5px rgba(69, 219, 131, 0.15);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .stat {
+            min-height: 78px;
+            border-top: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 12px 0 0;
+        }
+
+        .stat strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+
+        .stat span {
+            display: block;
+            color: #b8c4d8;
+            font-size: 0.82rem;
+        }
+
+        .control-panel {
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 0 0 12px;
+        }
+
+        button {
+            min-height: 46px;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            padding: 10px 16px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.55;
+        }
+
+        .btn-folder {
+            background: var(--soft);
+            color: var(--text);
+            border-color: var(--border);
+        }
+
+        .btn-start {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 10px 20px rgba(20, 110, 245, 0.22);
+        }
+
+        .btn-start:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+
+        .btn-stop {
+            background: var(--danger);
+            color: #ffffff;
+        }
+
+        .btn-snap {
+            background: var(--success);
+            color: #ffffff;
+        }
+
+        .status {
+            min-height: 40px;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            background: var(--soft);
+            padding: 11px 12px;
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .status[data-tone="good"] {
+            color: var(--success);
+            border-color: #b9dfc9;
+            background: #f1fbf5;
+        }
+
+        .status[data-tone="warn"] {
+            color: var(--warn);
+            border-color: #ead190;
+            background: #fff8df;
+        }
+
+        .status[data-tone="bad"] {
+            color: var(--danger);
+            border-color: #efb4b4;
+            background: #fff1f1;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .box {
+            min-height: 420px;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .box h2 {
+            margin: 0;
+            font-size: 1.02rem;
+            letter-spacing: 0;
+        }
+
+        .box-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            border-radius: 999px;
+            padding: 5px 9px;
+            background: var(--soft);
+            color: var(--muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        #transcript {
+            min-height: 330px;
+            max-height: 58vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #202b3d;
+            line-height: 1.7;
+            font-size: 16px;
+            background: #fbfcfe;
+            border: 1px solid #e7ebf2;
+            border-radius: 8px;
+            padding: 14px;
+        }
+
+        #transcript:empty::before,
+        #screenshotGallery:empty::before {
+            content: attr(data-empty);
+            color: var(--muted);
+        }
+
+        #screenshotGallery {
+            display: grid;
+            gap: 12px;
+        }
+
+        .shot {
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            overflow: hidden;
+            background: #ffffff;
+            margin: 0;
+        }
+
+        .shot img {
+            display: block;
+            width: 100%;
+            max-height: 320px;
+            object-fit: contain;
+            background: #eef1f6;
+        }
+
+        .shot figcaption {
+            padding: 9px 10px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .audio-panel {
+            border-radius: 8px;
+            margin-top: 16px;
+            padding: 16px;
+        }
+
+        .audio-panel h2 {
+            margin: 0 0 12px;
+            font-size: 1.02rem;
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .option {
+            min-height: 156px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 13px;
+            background: #fbfcfe;
+        }
+
+        .option strong {
+            display: block;
+            margin-bottom: 7px;
+            color: var(--ink);
+        }
+
+        .option p {
+            font-size: 0.92rem;
+        }
+
+        .preview-wrap {
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .preview-wrap video {
+            display: block;
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #060b14;
+            object-fit: contain;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                width: min(100% - 20px, 1120px);
+                padding-top: 18px;
+            }
+
+            .hero,
+            .workspace,
+            .option-grid {
+                display: block;
+            }
+
+            .session-card,
+            .box,
+            .audio-panel {
+                margin-top: 12px;
+            }
+
+            h1 {
+                font-size: 2.45rem;
+            }
+
+            .box {
+                min-height: 280px;
+            }
+
+            button {
+                flex: 1 1 180px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="hero">
+            <div class="hero-panel">
+                <h1>Transcribe + Screenshot Saver</h1>
+                <p class="lede">Capture your screen, voice notes, screenshots, and transcript into one tidy session folder.</p>
+            </div>
+            <aside class="session-card" aria-label="Session summary">
+                <div>
+                    <div id="sessionState" class="session-state">Ready</div>
+                    <p id="saveDestination">Choose a save folder to begin.</p>
+                </div>
+                <div class="preview-wrap">
+                    <video id="videoPreview" autoplay muted playsinline></video>
+                </div>
+                <div class="stats">
+                    <div class="stat">
+                        <strong id="timerValue">00:00</strong>
+                        <span>Recording time</span>
+                    </div>
+                    <div class="stat">
+                        <strong id="shotCount">0</strong>
+                        <span>Screenshots</span>
+                    </div>
+                    <div class="stat">
+                        <strong id="wordCount">0</strong>
+                        <span>Transcript words</span>
+                    </div>
+                    <div class="stat">
+                        <strong id="audioMode">Waiting</strong>
+                        <span>Computer audio</span>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <div class="control-panel">
+            <div class="controls">
+                <button id="folderBtn" class="btn-folder">Choose Save Folder</button>
+                <button id="startBtn" class="btn-start" disabled>Start Recording</button>
+                <button id="stopBtn" class="btn-stop" disabled>Stop</button>
+                <button id="snapBtn" class="btn-snap" disabled>Screenshot</button>
+            </div>
+            <div id="status" class="status" role="status" aria-live="polite"></div>
+        </div>
+
+        <canvas id="captureCanvas"></canvas>
+
+        <section class="workspace" aria-label="Session workspace">
+            <div class="box">
+                <div class="box-header">
+                    <h2>Live Transcript</h2>
+                    <span class="pill">Saved as transcript.txt</span>
+                </div>
+                <div id="transcript" data-empty="Transcript text will appear here while you speak."></div>
+            </div>
+            <div class="box">
+                <div class="box-header">
+                    <h2>Saved Screenshots</h2>
+                    <span class="pill">PNG files</span>
+                </div>
+                <div id="screenshotGallery" data-empty="Screenshots will appear here after capture."></div>
+            </div>
+        </section>
+
+        <section class="audio-panel" aria-label="System audio options">
+            <h2>System Audio Options</h2>
+            <div class="option-grid">
+                <div class="option">
+                    <strong>Browser mode</strong>
+                    <p>Best in Chrome or Edge. Choose a tab/window that exposes audio and turn on Share audio in the picker.</p>
+                </div>
+                <div class="option">
+                    <strong>Mac native mode</strong>
+                    <p>A desktop version can use Apple ScreenCaptureKit for more reliable system audio on modern macOS.</p>
+                </div>
+                <div class="option">
+                    <strong>Audio routing mode</strong>
+                    <p>BlackHole, Loopback, or VB-CABLE can route computer sound into a recordable input when browser capture is limited.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let screenStream = null;
+        let voiceStream = null;
+        let combinedStream = null;
+        let mediaRecorder = null;
+        let audioContext = null;
+        let audioSources = [];
+        let recordedChunks = [];
+        let recognition = null;
+        let directoryHandle = null;
+        let transcriptText = '';
+        let finalTranscriptText = '';
+        let interimTranscriptText = '';
+        let isRecording = false;
+        let isStopping = false;
+        let fallbackMode = false;
+        let transcriptSaveQueue = Promise.resolve();
+        let recordingStartedAt = 0;
+        let timerInterval = null;
+        let screenshotCount = 0;
+
+        const supportsFolderPicker = 'showDirectoryPicker' in window;
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        const folderBtn = document.getElementById('folderBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const snapBtn = document.getElementById('snapBtn');
+        const statusBox = document.getElementById('status');
+        const sessionState = document.getElementById('sessionState');
+        const saveDestination = document.getElementById('saveDestination');
+        const timerValue = document.getElementById('timerValue');
+        const shotCount = document.getElementById('shotCount');
+        const wordCount = document.getElementById('wordCount');
+        const audioMode = document.getElementById('audioMode');
+        const videoPreview = document.getElementById('videoPreview');
+        const canvas = document.getElementById('captureCanvas');
+        const transcriptDiv = document.getElementById('transcript');
+        const gallery = document.getElementById('screenshotGallery');
+
+        function setStatus(message, tone = '') {
+            statusBox.textContent = message;
+            statusBox.dataset.tone = tone;
+        }
+
+        function setSessionState(label, isLive = false) {
+            sessionState.textContent = label;
+            sessionState.classList.toggle('is-live', isLive);
+        }
+
+        function formatElapsed(milliseconds) {
+            const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        function startTimer() {
+            recordingStartedAt = Date.now();
+            timerValue.textContent = '00:00';
+            timerInterval = setInterval(() => {
+                timerValue.textContent = formatElapsed(Date.now() - recordingStartedAt);
+            }, 500);
+        }
+
+        function stopTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            if (recordingStartedAt) {
+                timerValue.textContent = formatElapsed(Date.now() - recordingStartedAt);
+            }
+        }
+
+        function updateTranscriptMetrics() {
+            const words = transcriptText.trim() ? transcriptText.trim().split(/\s+/).length : 0;
+            wordCount.textContent = String(words);
+        }
+
+        function timestampForFile(date = new Date()) {
+            const pad = (value) => String(value).padStart(2, '0');
+            return [
+                date.getFullYear(),
+                pad(date.getMonth() + 1),
+                pad(date.getDate())
+            ].join('') + '-' + [
+                pad(date.getHours()),
+                pad(date.getMinutes()),
+                pad(date.getSeconds())
+            ].join('');
+        }
+
+        function updateControls() {
+            const canSave = Boolean(directoryHandle) || fallbackMode;
+            startBtn.disabled = !canSave || isRecording;
+            stopBtn.disabled = !isRecording;
+            snapBtn.disabled = !isRecording || !screenStream;
+            folderBtn.disabled = isRecording || fallbackMode;
+            setSessionState(isRecording ? 'Recording' : canSave ? 'Ready' : 'Setup', isRecording);
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        async function saveBlob(filename, blob) {
+            if (!directoryHandle) {
+                downloadBlob(blob, filename);
+                return 'downloaded';
+            }
+
+            const fileHandle = await directoryHandle.getFileHandle(filename, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return 'saved';
+        }
+
+        async function saveTranscript(statusMessage = 'Transcript saved to transcript.txt.', options = {}) {
+            if (!directoryHandle && options.skipDownload) {
+                setStatus('Transcript updated. It will download when the session stops.', 'warn');
+                return;
+            }
+
+            const blob = new Blob([transcriptText], { type: 'text/plain;charset=utf-8' });
+            const result = await saveBlob('transcript.txt', blob);
+            const action = result === 'saved' ? 'saved' : 'downloaded';
+            setStatus(statusMessage.replace('saved', action), result === 'saved' ? 'good' : 'warn');
+        }
+
+        function queueTranscriptSave(statusMessage, options) {
+            transcriptSaveQueue = transcriptSaveQueue
+                .catch(() => {})
+                .then(() => saveTranscript(statusMessage, options));
+
+            return transcriptSaveQueue;
+        }
+
+        async function flushTranscriptSave() {
+            await transcriptSaveQueue.catch(() => {});
+            await saveTranscript('Transcript saved to transcript.txt.');
+        }
+
+        async function saveVideo() {
+            if (!recordedChunks.length) return;
+
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const filename = `session-video-${timestampForFile()}.webm`;
+            await saveBlob(filename, blob);
+        }
+
+        function stopMediaRecorder() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                return Promise.resolve();
+            }
+
+            return new Promise((resolve) => {
+                const existingStopHandler = mediaRecorder.onstop;
+                mediaRecorder.onstop = async (event) => {
+                    try {
+                        if (existingStopHandler) await existingStopHandler.call(mediaRecorder, event);
+                    } finally {
+                        resolve();
+                    }
+                };
+                mediaRecorder.stop();
+            });
+        }
+
+        function renderTranscript() {
+            transcriptText = finalTranscriptText + interimTranscriptText;
+            transcriptDiv.textContent = transcriptText;
+            transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+            updateTranscriptMetrics();
+        }
+
+        function createRecordingStream(displayStream, microphoneStream) {
+            const videoTracks = displayStream.getVideoTracks();
+            const displayAudioTracks = displayStream.getAudioTracks();
+            const microphoneTracks = microphoneStream ? microphoneStream.getAudioTracks() : [];
+            const availableAudioStreams = [];
+
+            if (displayAudioTracks.length) {
+                availableAudioStreams.push(new MediaStream(displayAudioTracks));
+            }
+
+            if (microphoneTracks.length) {
+                availableAudioStreams.push(new MediaStream(microphoneTracks));
+            }
+
+            if (!availableAudioStreams.length) {
+                return {
+                    stream: new MediaStream(videoTracks),
+                    hasDisplayAudio: false
+                };
+            }
+
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) {
+                return {
+                    stream: new MediaStream([...videoTracks, ...displayAudioTracks, ...microphoneTracks]),
+                    hasDisplayAudio: Boolean(displayAudioTracks.length)
+                };
+            }
+
+            audioContext = new AudioContextClass();
+            const destination = audioContext.createMediaStreamDestination();
+            audioSources = availableAudioStreams.map((audioStream) => {
+                const source = audioContext.createMediaStreamSource(audioStream);
+                source.connect(destination);
+                return source;
+            });
+
+            return {
+                stream: new MediaStream([...videoTracks, ...destination.stream.getAudioTracks()]),
+                hasDisplayAudio: Boolean(displayAudioTracks.length)
+            };
+        }
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i += 1) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript.trim() + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript.trim();
+                    }
+                }
+
+                if (finalTranscript) finalTranscriptText += finalTranscript;
+                interimTranscriptText = interimTranscript ? `${interimTranscript} ` : '';
+                renderTranscript();
+
+                if (finalTranscript) {
+                    queueTranscriptSave('Transcript saved to transcript.txt.', { skipDownload: true }).catch((error) => {
+                        console.error(error);
+                        setStatus('Transcript could not be saved. Check folder permission and try again.', 'bad');
+                    });
+                }
+            };
+
+            recognition.onerror = (event) => {
+                setStatus(`Speech recognition issue: ${event.error}. Screenshots and screen recording can continue.`, 'warn');
+            };
+        } else {
+            transcriptDiv.textContent = 'Speech recognition is not supported in this browser. Screenshots still work; use Chrome or Edge for transcription.';
+        }
+
+        if (!supportsFolderPicker) {
+            fallbackMode = true;
+            folderBtn.textContent = 'Folder Picker Unavailable';
+            saveDestination.textContent = 'Files will download because folder access is unavailable.';
+            audioMode.textContent = 'Browser';
+            setStatus('Folder saving is not supported here. Files will download instead.', 'warn');
+        } else {
+            audioMode.textContent = 'Waiting';
+            setStatus('Choose a save folder to begin.', 'warn');
+        }
+
+        folderBtn.onclick = async () => {
+            try {
+                directoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                fallbackMode = false;
+                saveDestination.textContent = `Saving into: ${directoryHandle.name}`;
+                setStatus('Save folder selected. Transcript and screenshots will be saved there.', 'good');
+                updateControls();
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    setStatus('No folder selected yet. Choose a folder before starting.', 'warn');
+                    return;
+                }
+
+                console.error(error);
+                fallbackMode = true;
+                saveDestination.textContent = 'Files will download because folder access was not granted.';
+                setStatus('Could not access a folder. Files will download instead.', 'warn');
+                updateControls();
+            }
+        };
+
+        startBtn.onclick = async () => {
+            try {
+                recordedChunks = [];
+                transcriptSaveQueue = Promise.resolve();
+                screenshotCount = 0;
+                shotCount.textContent = '0';
+                audioMode.textContent = 'Checking';
+                if (SpeechRecognition) {
+                    transcriptText = '';
+                    finalTranscriptText = '';
+                    interimTranscriptText = '';
+                    transcriptDiv.textContent = '';
+                    updateTranscriptMetrics();
+                } else {
+                    transcriptText = transcriptDiv.textContent;
+                    finalTranscriptText = transcriptText;
+                    interimTranscriptText = '';
+                    updateTranscriptMetrics();
+                }
+                gallery.textContent = '';
+                isStopping = false;
+
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: 'always'
+                    },
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        sampleRate: 48000
+                    },
+                    systemAudio: 'include',
+                    surfaceSwitching: 'include'
+                });
+                videoPreview.srcObject = screenStream;
+                await videoPreview.play();
+
+                try {
+                    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch (error) {
+                    voiceStream = null;
+                    setStatus('Microphone permission was not granted. Screenshots will work, but transcription may not start.', 'warn');
+                }
+
+                const recording = createRecordingStream(screenStream, voiceStream);
+                combinedStream = recording.stream;
+                const tracks = combinedStream.getTracks();
+
+                if ('MediaRecorder' in window && tracks.length) {
+                    const preferredTypes = [
+                        'video/webm;codecs=vp9,opus',
+                        'video/webm;codecs=vp8,opus',
+                        'video/webm'
+                    ];
+                    const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type));
+                    const recorderOptions = mimeType ? { mimeType } : undefined;
+
+                    mediaRecorder = new MediaRecorder(combinedStream, recorderOptions);
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) recordedChunks.push(event.data);
+                    };
+                    mediaRecorder.onstop = () => {
+                        saveVideo().catch((error) => {
+                            console.error(error);
+                            setStatus('Session video could not be saved, but transcript/screenshots are separate.', 'warn');
+                        });
+                    };
+                    mediaRecorder.start();
+                }
+
+                if (recognition && voiceStream) {
+                    try {
+                        recognition.start();
+                    } catch (error) {
+                        console.error(error);
+                        setStatus('Speech recognition did not start. Screenshots can continue.', 'warn');
+                    }
+                }
+
+                isRecording = true;
+                startTimer();
+                screenStream.getVideoTracks()[0].onended = () => stopRecording();
+                const audioStatus = recording.hasDisplayAudio
+                    ? 'Computer audio is included.'
+                    : 'Computer audio was not provided by the browser picker. Choose a tab/window that supports audio and enable Share audio.';
+                audioMode.textContent = recording.hasDisplayAudio ? 'Included' : 'Not shared';
+                setStatus(`Recording started. ${audioStatus}`, recording.hasDisplayAudio ? 'good' : 'warn');
+                updateControls();
+            } catch (error) {
+                console.error(error);
+                setStatus('Screen capture could not start. Please grant screen permission and try again.', 'bad');
+                stopStreams();
+                isRecording = false;
+                stopTimer();
+                audioMode.textContent = 'Waiting';
+                updateControls();
+            }
+        };
+
+        async function takeScreenshot() {
+            if (!screenStream || !videoPreview.videoWidth || !videoPreview.videoHeight) {
+                setStatus('Screen preview is not ready yet. Try again in a moment.', 'warn');
+                return;
+            }
+
+            const context = canvas.getContext('2d');
+            canvas.width = videoPreview.videoWidth;
+            canvas.height = videoPreview.videoHeight;
+            context.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    setStatus('Screenshot could not be created.', 'bad');
+                    return;
+                }
+
+                const filename = `screenshot-${timestampForFile()}.png`;
+                const imageUrl = URL.createObjectURL(blob);
+
+                const figure = document.createElement('figure');
+                figure.className = 'shot';
+
+                const image = document.createElement('img');
+                image.src = imageUrl;
+                image.alt = filename;
+
+                const caption = document.createElement('figcaption');
+                caption.textContent = filename;
+
+                figure.append(image, caption);
+                gallery.prepend(figure);
+                screenshotCount += 1;
+                shotCount.textContent = String(screenshotCount);
+
+                try {
+                    const result = await saveBlob(filename, blob);
+                    setStatus(result === 'saved' ? `${filename} saved.` : `${filename} downloaded.`, result === 'saved' ? 'good' : 'warn');
+                } catch (error) {
+                    console.error(error);
+                    setStatus('Screenshot could not be saved. Check folder permission and try again.', 'bad');
+                }
+            }, 'image/png');
+        }
+
+        snapBtn.onclick = takeScreenshot;
+
+        function stopStreams() {
+            audioSources.forEach((source) => source.disconnect());
+            audioSources = [];
+            if (audioContext) audioContext.close().catch(() => {});
+            audioContext = null;
+            if (screenStream) screenStream.getTracks().forEach((track) => track.stop());
+            if (voiceStream) voiceStream.getTracks().forEach((track) => track.stop());
+            screenStream = null;
+            voiceStream = null;
+            combinedStream = null;
+            videoPreview.srcObject = null;
+        }
+
+        async function stopRecording() {
+            if (isStopping) return;
+            isStopping = true;
+
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch (error) {
+                    console.warn(error);
+                }
+            }
+
+            await stopMediaRecorder();
+            stopStreams();
+            isRecording = false;
+            stopTimer();
+            audioMode.textContent = audioMode.textContent === 'Included' ? 'Included' : 'Stopped';
+            updateControls();
+
+            try {
+                await flushTranscriptSave();
+                setStatus('Session stopped. Transcript saved; screenshots are already in the same place.', 'good');
+            } catch (error) {
+                console.error(error);
+                setStatus('Session stopped, but transcript could not be saved.', 'bad');
+            } finally {
+                isStopping = false;
+            }
+        }
+
+        stopBtn.onclick = stopRecording;
+        updateControls();
+    </script>
+</body>
+</html>
