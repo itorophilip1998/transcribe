@@ -1,0 +1,38 @@
+body {
+  margin: 0;
+  width: 280px;
+  font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #0f172a;
+}
+
+.popup {
+  padding: 14px;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+p,
+ol {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+ol {
+  padding-left: 18px;
+}
+
+button {
+  width: 100%;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
